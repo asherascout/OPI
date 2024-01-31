@@ -48,6 +48,7 @@ def main():
         if response.status_code == 200:
             # 解析返回的JSON
             data = response.json()
+            print(data)
             if (
                 to_send["block_height"] == data["block_height"]
                 and to_send["block_event_hash"] == data["block_event_hash"]
