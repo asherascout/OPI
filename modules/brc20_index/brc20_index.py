@@ -1084,7 +1084,7 @@ def check_if_there_is_residue_on_extra_tables_from_last_run():
 
 print(report_name)
 cur.execute(
-    """select event_type_name, event_type_id from brc20_event_types%s;""",
+    """select event_type_name, event_type_id from brc20_event_types%d;""",
     (report_name,),
 )
 event_types = {}
