@@ -1224,7 +1224,7 @@ def report_hashes(block_height):
     )
     block_hash = cur.fetchone()[0]
     to_send = {
-        "name": report_name,
+        "name": report_name.replace("_", "-"),
         "type": "brc20",
         "node_type": "full_node",
         "network_type": network_type,
