@@ -43,7 +43,7 @@ def main():
     to_send = {}
     while True:
         time.sleep(5)
-        response = requests.get("http://23.154.136.144:5000/json")
+        response = requests.get("http://23.154.136.144:15000/json")
         # 检查请求是否成功
         if response.status_code == 200:
             # 解析返回的JSON
