@@ -209,13 +209,12 @@ def get_number_extended_to_18_decimals(s, decimals, do_strip=False):
 def is_used_or_invalid(inscription_id):
     global event_types
     cur.execute(
-        """select coalesce(sum(case when event_type = %s then 1 else 0 end), 0) as inscr_cnt,
+        f"""select coalesce(sum(case when event_type = %s then 1 else 0 end), 0) as inscr_cnt,
                         coalesce(sum(case when event_type = %s then 1 else 0 end), 0) as transfer_cnt
-                        from brc20_events%s where inscription_id = %s;""",
+                        from brc20_events{report_name} where inscription_id = %s;""",
         (
             event_types["transfer-inscribe"],
             event_types["transfer-transfer"],
-            report_name,
             inscription_id,
         ),
     )
@@ -298,9 +297,8 @@ def get_transfer_inscribe_event(inscription_id):
         del transfer_inscribe_event_cache[inscription_id]
         return event
     cur.execute(
-        """select event from brc20_events%s where event_type = %s and inscription_id = %s;""",
+        f"""select event from brc20_events{report_name} where event_type = %s and inscription_id = %s;""",
         (
-            report_name,
             event_types["transfer-inscribe"],
             inscription_id,
         ),
@@ -321,8 +319,8 @@ def get_last_balance(pkscript, tick):
     if cache_key in balance_cache:
         return balance_cache[cache_key]
     cur.execute(
-        """select overall_balance, available_balance from brc20_historic_balances%s where pkscript = %s and tick = %s order by block_height desc, id desc limit 1;""",
-        (report_name, pkscript, tick),
+        f"""select overall_balance, available_balance from brc20_historic_balances{report_name} where pkscript = %s and tick = %s order by block_height desc, id desc limit 1;""",
+        (pkscript, tick),
     )
     row = cur.fetchone()
     balance_obj = None
@@ -374,10 +372,9 @@ def deploy_inscribe(
         get_event_str(event, "deploy-inscribe", inscription_id) + EVENT_SEPARATOR
     )
     cur.execute(
-        """insert into brc20_events%s (event_type, block_height, inscription_id, event)
+        f"""insert into brc20_events{report_name} (event_type, block_height, inscription_id, event)
     values (%s, %s, %s, %s);""",
         (
-            report_name,
             event_types["deploy-inscribe"],
             block_height,
             inscription_id,
@@ -386,10 +383,9 @@ def deploy_inscribe(
     )
 
     cur.execute(
-        """insert into brc20_tickers%s (tick, max_supply, decimals, limit_per_mint, remaining_supply, block_height)
+        f"""insert into brc20_tickers{report_name} (tick, max_supply, decimals, limit_per_mint, remaining_supply, block_height)
     values (%s, %s, %s, %s, %s, %s);""",
         (
-            report_name,
             tick,
             max_supply,
             decimals,
@@ -421,10 +417,9 @@ def mint_inscribe(
         get_event_str(event, "mint-inscribe", inscription_id) + EVENT_SEPARATOR
     )
     cur.execute(
-        """insert into brc20_events%s (event_type, block_height, inscription_id, event)
+        f"""insert into brc20_events{report_name} (event_type, block_height, inscription_id, event)
     values (%s, %s, %s, %s) returning id;""",
         (
-            report_name,
             event_types["mint-inscribe"],
             block_height,
             inscription_id,
@@ -433,18 +428,17 @@ def mint_inscribe(
     )
     event_id = cur.fetchone()[0]
     cur.execute(
-        """update brc20_tickers%s set remaining_supply = remaining_supply - %s where tick = %s;""",
-        (report_name, amount, tick),
+        f"""update brc20_tickers{report_name} set remaining_supply = remaining_supply - %s where tick = %s;""",
+        (amount, tick),
     )
 
     last_balance = get_last_balance(minted_pkScript, tick)
     last_balance["overall_balance"] += amount
     last_balance["available_balance"] += amount
     cur.execute(
-        """insert into brc20_historic_balances%s (pkscript, wallet, tick, overall_balance, available_balance, block_height, event_id) 
+        f"""insert into brc20_historic_balances{report_name} (pkscript, wallet, tick, overall_balance, available_balance, block_height, event_id) 
                 values (%s, %s, %s, %s, %s, %s, %s);""",
         (
-            report_name,
             minted_pkScript,
             minted_wallet,
             tick,
@@ -477,10 +471,9 @@ def transfer_inscribe(
         get_event_str(event, "transfer-inscribe", inscription_id) + EVENT_SEPARATOR
     )
     cur.execute(
-        """insert into brc20_events%s (event_type, block_height, inscription_id, event)
+        f"""insert into brc20_events{report_name} (event_type, block_height, inscription_id, event)
     values (%s, %s, %s, %s) returning id;""",
         (
-            report_name,
             event_types["transfer-inscribe"],
             block_height,
             inscription_id,
@@ -492,10 +485,9 @@ def transfer_inscribe(
     last_balance = get_last_balance(source_pkScript, tick)
     last_balance["available_balance"] -= amount
     cur.execute(
-        """insert into brc20_historic_balances%s (pkscript, wallet, tick, overall_balance, available_balance, block_height, event_id)
+        f"""insert into brc20_historic_balances{report_name} (pkscript, wallet, tick, overall_balance, available_balance, block_height, event_id)
                 values (%s, %s, %s, %s, %s, %s, %s);""",
         (
-            report_name,
             source_pkScript,
             source_wallet,
             tick,
@@ -540,10 +532,9 @@ def transfer_transfer_normal(
         get_event_str(event, "transfer-transfer", inscription_id) + EVENT_SEPARATOR
     )
     cur.execute(
-        """insert into brc20_events%s (event_type, block_height, inscription_id, event)
+        f"""insert into brc20_events{report_name} (event_type, block_height, inscription_id, event)
     values (%s, %s, %s, %s) returning id;""",
         (
-            report_name,
             event_types["transfer-transfer"],
             block_height,
             inscription_id,
@@ -555,10 +546,9 @@ def transfer_transfer_normal(
     last_balance = get_last_balance(source_pkScript, tick)
     last_balance["overall_balance"] -= amount
     cur.execute(
-        """insert into brc20_historic_balances%s (pkscript, wallet, tick, overall_balance, available_balance, block_height, event_id)
+        f"""insert into brc20_historic_balances{report_name} (pkscript, wallet, tick, overall_balance, available_balance, block_height, event_id)
                 values (%s, %s, %s, %s, %s, %s, %s);""",
         (
-            report_name,
             source_pkScript,
             source_wallet,
             tick,
@@ -574,10 +564,9 @@ def transfer_transfer_normal(
     last_balance["overall_balance"] += amount
     last_balance["available_balance"] += amount
     cur.execute(
-        """insert into brc20_historic_balances%s (pkscript, wallet, tick, overall_balance, available_balance, block_height, event_id) 
+        f"""insert into brc20_historic_balances{report_name} (pkscript, wallet, tick, overall_balance, available_balance, block_height, event_id) 
                 values (%s, %s, %s, %s, %s, %s, %s);""",
         (
-            report_name,
             spent_pkScript,
             spent_wallet,
             tick,
@@ -615,10 +604,9 @@ def transfer_transfer_spend_to_fee(
         get_event_str(event, "transfer-transfer", inscription_id) + EVENT_SEPARATOR
     )
     cur.execute(
-        """insert into brc20_events%s (event_type, block_height, inscription_id, event)
+        f"""insert into brc20_events{report_name} (event_type, block_height, inscription_id, event)
     values (%s, %s, %s, %s) returning id;""",
         (
-            report_name,
             event_types["transfer-transfer"],
             block_height,
             inscription_id,
@@ -630,10 +618,9 @@ def transfer_transfer_spend_to_fee(
     last_balance = get_last_balance(source_pkScript, tick)
     last_balance["available_balance"] += amount
     cur.execute(
-        """insert into brc20_historic_balances%s (pkscript, wallet, tick, overall_balance, available_balance, block_height, event_id) 
+        f"""insert into brc20_historic_balances{report_name} (pkscript, wallet, tick, overall_balance, available_balance, block_height, event_id) 
                 values (%s, %s, %s, %s, %s, %s, %s);""",
         (
-            report_name,
             source_pkScript,
             source_wallet,
             tick,
@@ -655,19 +642,16 @@ def update_event_hashes(block_height):
     block_event_hash = get_sha256_hash(block_events_str)
     cumulative_event_hash = None
     cur.execute(
-        """select cumulative_event_hash from brc20_cumulative_event_hashes%s where block_height = %s;""",
-        (
-            report_name,
-            block_height - 1,
-        ),
+        f"""select cumulative_event_hash from brc20_cumulative_event_hashes{report_name} where block_height = %s;""",
+        (block_height - 1,),
     )
     if cur.rowcount == 0:
         cumulative_event_hash = block_event_hash
     else:
         cumulative_event_hash = get_sha256_hash(cur.fetchone()[0] + block_event_hash)
     cur.execute(
-        """INSERT INTO brc20_cumulative_event_hashes%s (block_height, block_event_hash, cumulative_event_hash) VALUES (%s, %s, %s);""",
-        (report_name, block_height, block_event_hash, cumulative_event_hash),
+        f"""INSERT INTO brc20_cumulative_event_hashes{report_name} (block_height, block_event_hash, cumulative_event_hash) VALUES (%s, %s, %s);""",
+        (block_height, block_event_hash, cumulative_event_hash),
     )
 
 
@@ -692,8 +676,8 @@ def index_block(block_height, current_block_hash):
         print("No transfers found for block " + str(block_height))
         update_event_hashes(block_height)
         cur.execute(
-            """INSERT INTO brc20_block_hashes%s (block_height, block_hash) VALUES (%s, %s);""",
-            (report_name, block_height, current_block_hash),
+            f"""INSERT INTO brc20_block_hashes{report_name} (block_height, block_hash) VALUES (%s, %s);""",
+            (block_height, current_block_hash),
         )
         return
     print("Transfer count: ", len(transfers))
@@ -701,8 +685,7 @@ def index_block(block_height, current_block_hash):
     ## refresh ticks
     sttm = time.time()
     cur.execute(
-        """select tick, remaining_supply, limit_per_mint, decimals from brc20_tickers%s;""",
-        (report_name,),
+        f"""select tick, remaining_supply, limit_per_mint, decimals from brc20_tickers{report_name};""",
     )
     ticks_ = cur.fetchall()
     ticks = {}
@@ -867,8 +850,8 @@ def index_block(block_height, current_block_hash):
     update_event_hashes(block_height)
     # end of block
     cur.execute(
-        """INSERT INTO brc20_block_hashes%s (block_height, block_hash) VALUES (%s, %s);""",
-        (report_name, block_height, current_block_hash),
+        f"""INSERT INTO brc20_block_hashes{report_name} (block_height, block_hash) VALUES (%s, %s);""",
+        (block_height, current_block_hash),
     )
     conn.commit()
     print("ALL DONE")
@@ -876,8 +859,7 @@ def index_block(block_height, current_block_hash):
 
 def check_for_reorg():
     cur.execute(
-        "select block_height, block_hash from brc20_block_hashes%s order by block_height desc limit 1;",
-        (report_name,),
+        f"select block_height, block_hash from brc20_block_hashes{report_name} order by block_height desc limit 1;",
     )
     if cur.rowcount == 0:
         return None  ## nothing indexed yet
@@ -893,8 +875,7 @@ def check_for_reorg():
 
     print("REORG DETECTED!!")
     cur.execute(
-        "select block_height, block_hash from brc20_block_hashes%s order by block_height desc limit 10;",
-        (report_name,),
+        f"select block_height, block_hash from brc20_block_hashes{report_name} order by block_height desc limit 10;",
     )
     hashes = cur.fetchall()  ## get last 10 hashes
     for h in hashes:
@@ -916,17 +897,13 @@ def reorg_fix(reorg_height):
     global event_types
     cur.execute("begin;")
     cur.execute(
-        "delete from brc20_tickers%s where block_height > %s;",
-        (
-            report_name,
-            reorg_height,
-        ),
+        f"delete from brc20_tickers{report_name} where block_height > %s;",
+        (reorg_height,),
     )  ## delete new tickers
     ## fetch mint events for reverting remaining_supply in other tickers
     cur.execute(
-        """select event from brc20_events%s where event_type = %s and block_height > %s;""",
+        f"""select event from brc20_events{report_name} where event_type = %s and block_height > %s;""",
         (
-            report_name,
             event_types["mint-inscribe"],
             reorg_height,
         ),
@@ -942,56 +919,39 @@ def reorg_fix(reorg_height):
         tick_changes[tick] += amount
     for tick in tick_changes:
         cur.execute(
-            """update brc20_tickers%s set remaining_supply = remaining_supply + %s where tick = %s;""",
-            (report_name, tick_changes[tick], tick),
+            f"""update brc20_tickers{report_name} set remaining_supply = remaining_supply + %s where tick = %s;""",
+            (tick_changes[tick], tick),
         )
     cur.execute(
-        "delete from brc20_historic_balances%s where block_height > %s;",
-        (
-            report_name,
-            reorg_height,
-        ),
+        f"delete from brc20_historic_balances{report_name} where block_height > %s;",
+        (reorg_height,),
     )  ## delete new balances
     cur.execute(
-        "delete from brc20_events%s where block_height > %s;",
-        (
-            report_name,
-            reorg_height,
-        ),
+        f"delete from brc20_events{report_name} where block_height > %s;",
+        (reorg_height,),
     )  ## delete new events
     cur.execute(
-        "delete from brc20_cumulative_event_hashes%s where block_height > %s;",
-        (
-            report_name,
-            reorg_height,
-        ),
+        f"delete from brc20_cumulative_event_hashes{report_name} where block_height > %s;",
+        (reorg_height,),
     )  ## delete new bitmaps
     cur.execute(
-        "SELECT setval('brc20_cumulative_event_hashes_id_seq', max(id)) from brc20_cumulative_event_hashes%s;",
-        (report_name,),
+        f"SELECT setval('brc20_cumulative_event_hashes_id_seq', max(id)) from brc20_cumulative_event_hashes{report_name};",
     )  ## reset id sequence
     cur.execute(
-        "SELECT setval('brc20_tickers_id_seq', max(id)) from brc20_tickers%s;",
-        (report_name,),
+        f"SELECT setval('brc20_tickers_id_seq', max(id)) from brc20_tickers{report_name};",
     )  ## reset id sequence
     cur.execute(
-        "SELECT setval('brc20_historic_balances_id_seq', max(id)) from brc20_historic_balances%s;",
-        (report_name,),
+        f"SELECT setval('brc20_historic_balances_id_seq', max(id)) from brc20_historic_balances{report_name};",
     )  ## reset id sequence
     cur.execute(
-        "SELECT setval('brc20_events_id_seq', max(id)) from brc20_events%s;",
-        (report_name,),
+        f"SELECT setval('brc20_events_id_seq', max(id)) from brc20_events{report_name};",
     )  ## reset id sequence
     cur.execute(
-        "delete from brc20_block_hashes%s where block_height > %s;",
-        (
-            report_name,
-            reorg_height,
-        ),
+        f"delete from brc20_block_hashes{report_name} where block_height > %s;",
+        (reorg_height,),
     )  ## delete new block hashes
     cur.execute(
-        "SELECT setval('brc20_block_hashes_id_seq', max(id)) from brc20_block_hashes%s;",
-        (report_name,),
+        f"SELECT setval('brc20_block_hashes_id_seq', max(id)) from brc20_block_hashes{report_name};",
     )  ## reset id sequence
     cur.execute("commit;")
     reset_caches()
@@ -999,8 +959,7 @@ def reorg_fix(reorg_height):
 
 def check_if_there_is_residue_from_last_run():
     cur.execute(
-        """select max(block_height) from brc20_block_hashes%s;""",
-        (report_name,),
+        f"""select max(block_height) from brc20_block_hashes{report_name};""",
     )
     row = cur.fetchone()
     current_block = None
@@ -1010,29 +969,25 @@ def check_if_there_is_residue_from_last_run():
         current_block = row[0] + 1
     residue_found = False
     cur.execute(
-        """select coalesce(max(block_height), -1) from brc20_events%s;""",
-        (report_name,),
+        f"""select coalesce(max(block_height), -1) from brc20_events{report_name};""",
     )
     if cur.rowcount != 0 and cur.fetchone()[0] >= current_block:
         residue_found = True
         print("residue on brc20_events")
     cur.execute(
-        """select coalesce(max(block_height), -1) from brc20_historic_balances%s;""",
-        (report_name,),
+        f"""select coalesce(max(block_height), -1) from brc20_historic_balances{report_name};""",
     )
     if cur.rowcount != 0 and cur.fetchone()[0] >= current_block:
         residue_found = True
         print("residue on historic balances")
     cur.execute(
-        """select coalesce(max(block_height), -1) from brc20_tickers%s;""",
-        (report_name,),
+        f"""select coalesce(max(block_height), -1) from brc20_tickers{report_name};""",
     )
     if cur.rowcount != 0 and cur.fetchone()[0] >= current_block:
         residue_found = True
         print("residue on tickers")
     cur.execute(
-        """select coalesce(max(block_height), -1) from brc20_cumulative_event_hashes%s;""",
-        (report_name,),
+        f"""select coalesce(max(block_height), -1) from brc20_cumulative_event_hashes{report_name};""",
     )
     if cur.rowcount != 0 and cur.fetchone()[0] >= current_block:
         residue_found = True
@@ -1048,8 +1003,7 @@ def check_if_there_is_residue_from_last_run():
 
 def check_if_there_is_residue_on_extra_tables_from_last_run():
     cur.execute(
-        """select max(block_height) from brc20_extras_block_hashes%s;""",
-        (report_name,),
+        f"""select max(block_height) from brc20_extras_block_hashes{report_name};""",
     )
     row = cur.fetchone()
     current_block = None
@@ -1059,15 +1013,13 @@ def check_if_there_is_residue_on_extra_tables_from_last_run():
         current_block = row[0] + 1
     residue_found = False
     cur.execute(
-        """select coalesce(max(block_height), -1) from brc20_unused_tx_inscrs%s;""",
-        (report_name,),
+        f"""select coalesce(max(block_height), -1) from brc20_unused_tx_inscrs{report_name};""",
     )
     if cur.rowcount != 0 and cur.fetchone()[0] >= current_block:
         residue_found = True
         print("residue on brc20_unused_tx_inscrs")
     cur.execute(
-        """select coalesce(max(block_height), -1) from brc20_current_balances%s;""",
-        (report_name,),
+        f"""select coalesce(max(block_height), -1) from brc20_current_balances{report_name};""",
     )
     if cur.rowcount != 0 and cur.fetchone()[0] >= current_block:
         residue_found = True
@@ -1082,10 +1034,8 @@ def check_if_there_is_residue_on_extra_tables_from_last_run():
         return
 
 
-print(report_name)
 cur.execute(
-    """select event_type_name, event_type_id from brc20_event_types%d;""",
-    (report_name,),
+    f"select event_type_name, event_type_id from brc20_event_types{report_name};",
 )
 event_types = {}
 for row in cur.fetchall():
@@ -1099,12 +1049,10 @@ for key in event_types:
 def reindex_cumulative_hashes():
     global event_types_rev, ticks
     cur.execute(
-        """delete from brc20_cumulative_event_hashes%s;""",
-        (report_name,),
+        f"""delete from brc20_cumulative_event_hashes{report_name};""",
     )
     cur.execute(
-        """select min(block_height), max(block_height) from brc20_block_hashes%s;""",
-        (report_name,),
+        f"""select min(block_height), max(block_height) from brc20_block_hashes{report_name};""",
     )
     row = cur.fetchone()
     min_block = row[0]
@@ -1112,8 +1060,7 @@ def reindex_cumulative_hashes():
 
     sttm = time.time()
     cur.execute(
-        """select tick, remaining_supply, limit_per_mint, decimals from brc20_tickers%s;""",
-        (report_name,),
+        f"""select tick, remaining_supply, limit_per_mint, decimals from brc20_tickers{report_name};""",
     )
     ticks_ = cur.fetchall()
     ticks = {}
@@ -1128,11 +1075,8 @@ def reindex_cumulative_hashes():
         print("Reindexing block " + str(block_height))
         block_events_str = ""
         cur.execute(
-            """select event, event_type, inscription_id from brc20_events%s where block_height = %s order by id asc;""",
-            (
-                report_name,
-                block_height,
-            ),
+            f"""select event, event_type, inscription_id from brc20_events{report_name} where block_height = %s order by id asc;""",
+            (block_height,),
         )
         rows = cur.fetchall()
         for row in rows:
@@ -1146,8 +1090,7 @@ def reindex_cumulative_hashes():
 
 
 cur.execute(
-    "select db_version from brc20_indexer_version%s;",
-    (report_name,),
+    f"select db_version from brc20_indexer_version{report_name};",
 )
 if cur.rowcount == 0:
     print(
@@ -1170,13 +1113,11 @@ else:
             time.sleep(5)
             reindex_cumulative_hashes()
             cur.execute(
-                "alter table brc20_indexer_version%s add column if not exists db_version int4;",
-                (report_name,),
+                f"alter table brc20_indexer_version{report_name} add column if not exists db_version int4;",
             )  ## next versions will use DB_VERSION for DB check
             cur.execute(
-                "update brc20_indexer_version%s set indexer_version = %s, db_version = %s;",
+                f"update brc20_indexer_version{report_name} set indexer_version = %s, db_version = %s;",
                 (
-                    report_name,
                     INDEXER_VERSION,
                     DB_VERSION,
                 ),
@@ -1211,21 +1152,15 @@ def report_hashes(block_height):
         print("Reporting to metaprotocol indexer is disabled.")
         return
     cur.execute(
-        """select block_event_hash, cumulative_event_hash from brc20_cumulative_event_hashes% where block_height = %s;""",
-        (
-            report_name,
-            block_height,
-        ),
+        f"""select block_event_hash, cumulative_event_hash from brc20_cumulative_event_hashes{report_name} where block_height = %s;""",
+        (block_height,),
     )
     row = cur.fetchone()
     block_event_hash = row[0]
     cumulative_event_hash = row[1]
     cur.execute(
-        """select block_hash from brc20_block_hashes%s where block_height = %s;""",
-        (
-            report_name,
-            block_height,
-        ),
+        f"""select block_hash from brc20_block_hashes{report_name} where block_height = %s;""",
+        (block_height,),
     )
     block_hash = cur.fetchone()[0]
     to_send = {
@@ -1247,11 +1182,8 @@ def report_hashes(block_height):
 def reorg_on_extra_tables(reorg_height):
     cur.execute("begin;")
     cur.execute(
-        "delete from brc20_current_balances%s where block_height > %s RETURNING pkscript, tick;",
-        (
-            report_name,
-            reorg_height,
-        ),
+        f"delete from brc20_current_balances{report_name} where block_height > %s RETURNING pkscript, tick;",
+        (reorg_height,),
     )  ## delete new balances
     rows = cur.fetchall()
     ## fetch balances of deleted rows for reverting balances
@@ -1259,20 +1191,19 @@ def reorg_on_extra_tables(reorg_height):
         pkscript = r[0]
         tick = r[1]
         cur.execute(
-            """ select overall_balance, available_balance, wallet, block_height
-                    from brc20_historic_balances%s 
+            f""" select overall_balance, available_balance, wallet, block_height
+                    from brc20_historic_balances{report_name} 
                     where block_height <= %s and pkscript = %s and tick = %s
                     order by id desc
                     limit 1;""",
-            (report_name, reorg_height, pkscript, tick),
+            (reorg_height, pkscript, tick),
         )
         if cur.rowcount != 0:
             balance = cur.fetchone()
             cur.execute(
-                """insert into brc20_current_balances%s (pkscript, wallet, tick, overall_balance, available_balance, block_height)
+                f"""insert into brc20_current_balances{report_name} (pkscript, wallet, tick, overall_balance, available_balance, block_height)
                       values (%s, %s, %s, %s, %s, %s);""",
                 (
-                    report_name,
                     pkscript,
                     balance[2],
                     tick,
@@ -1283,17 +1214,16 @@ def reorg_on_extra_tables(reorg_height):
             )
 
     cur.execute(
-        "truncate table brc20_unused_tx_inscrs%s restart identity;",
-        (report_name,),
+        f"truncate table brc20_unused_tx_inscrs{report_name} restart identity;",
     )
     cur.execute(
-        """with tempp as (
+        f"""with tempp as (
                   select inscription_id, event, id, block_height
-                  from brc20_events%s
+                  from brc20_events{report_name}
                   where event_type = %s and block_height <= %s
                 ), tempp2 as (
                   select inscription_id, event
-                  from brc20_events%s
+                  from brc20_events{report_name}
                   where event_type = %s and block_height <= %s
                 )
                 select t.event, t.id, t.block_height, t.inscription_id
@@ -1301,10 +1231,8 @@ def reorg_on_extra_tables(reorg_height):
                 left join tempp2 t2 on t.inscription_id = t2.inscription_id
                 where t2.inscription_id is null;""",
         (
-            report_name,
             event_types["transfer-inscribe"],
             reorg_height,
-            report_name,
             event_types["transfer-transfer"],
             reorg_height,
         ),
@@ -1316,10 +1244,9 @@ def reorg_on_extra_tables(reorg_height):
         block_height = row[2]
         inscription_id = row[3]
         cur.execute(
-            """INSERT INTO brc20_unused_tx_inscrs%s (inscription_id, tick, amount, current_holder_pkscript, current_holder_wallet, event_id, block_height)
+            f"""INSERT INTO brc20_unused_tx_inscrs{report_name} (inscription_id, tick, amount, current_holder_pkscript, current_holder_wallet, event_id, block_height)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)""",
             (
-                report_name,
                 inscription_id,
                 new_event["tick"],
                 int(new_event["amount"]),
@@ -1331,15 +1258,11 @@ def reorg_on_extra_tables(reorg_height):
         )
 
     cur.execute(
-        "delete from brc20_extras_block_hashes%s where block_height > %s;",
-        (
-            report_name,
-            reorg_height,
-        ),
+        f"delete from brc20_extras_block_hashes{report_name} where block_height > %s;",
+        (reorg_height,),
     )  ## delete new block hashes
     cur.execute(
-        "SELECT setval('brc20_extras_block_hashes_id_seq', max(id)) from brc20_extras_block_hashes%s;",
-        (report_name,),
+        f"SELECT setval('brc20_extras_block_hashes_id_seq', max(id)) from brc20_extras_block_hashes{report_name};",
     )  ## reset id sequence
     cur.execute("commit;")
 
@@ -1348,18 +1271,17 @@ def initial_index_of_extra_tables():
     cur.execute("begin;")
     print("resetting brc20_unused_tx_inscrs")
     cur.execute(
-        "truncate table brc20_unused_tx_inscrs%s restart identity;",
-        (report_name,),
+        f"truncate table brc20_unused_tx_inscrs{report_name} restart identity;",
     )
     print("selecting unused txes")
     cur.execute(
-        """with tempp as (
+        f"""with tempp as (
                   select inscription_id, event, id, block_height
-                  from brc20_events%s
+                  from brc20_events{report_name}
                   where event_type = %s
                 ), tempp2 as (
                   select inscription_id, event
-                  from brc20_events%s
+                  from brc20_events{report_name}
                   where event_type = %s
                 )
                 select t.event, t.id, t.block_height, t.inscription_id
@@ -1367,9 +1289,7 @@ def initial_index_of_extra_tables():
                 left join tempp2 t2 on t.inscription_id = t2.inscription_id
                 where t2.inscription_id is null;""",
         (
-            report_name,
             event_types["transfer-inscribe"],
-            report_name,
             event_types["transfer-transfer"],
         ),
     )
@@ -1385,10 +1305,9 @@ def initial_index_of_extra_tables():
         block_height = row[2]
         inscription_id = row[3]
         cur.execute(
-            """INSERT INTO brc20_unused_tx_inscrs%s (inscription_id, tick, amount, current_holder_pkscript, current_holder_wallet, event_id, block_height)
+            f"""INSERT INTO brc20_unused_tx_inscrs{report_name} (inscription_id, tick, amount, current_holder_pkscript, current_holder_wallet, event_id, block_height)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)""",
             (
-                report_name,
                 inscription_id,
                 new_event["tick"],
                 int(new_event["amount"]),
@@ -1401,24 +1320,19 @@ def initial_index_of_extra_tables():
 
     print("resetting brc20_current_balances")
     cur.execute(
-        "truncate table brc20_current_balances%s restart identity;",
-        (report_name,),
+        f"truncate table brc20_current_balances{report_name} restart identity;",
     )
     print("selecting current balances")
     cur.execute(
-        """with tempp as (
+        f"""with tempp as (
                     select max(id) as id
-                    from brc20_historic_balances%s
+                    from brc20_historic_balances{report_name}
                     group by pkscript, tick
                   )
                   select bhb.pkscript, bhb.tick, bhb.overall_balance, bhb.available_balance, bhb.wallet, bhb.block_height
                   from tempp t
-                  left join brc20_historic_balances%s bhb on bhb.id = t.id
+                  left join brc20_historic_balances{report_name} bhb on bhb.id = t.id
                   order by bhb.pkscript asc, bhb.tick asc;""",
-        (
-            report_name,
-            report_name,
-        ),
     )
     rows = cur.fetchall()
     print("inserting current balances")
@@ -1434,10 +1348,9 @@ def initial_index_of_extra_tables():
         wallet = r[4]
         block_height = r[5]
         cur.execute(
-            """insert into brc20_current_balances%s (pkscript, wallet, tick, overall_balance, available_balance, block_height)
+            f"""insert into brc20_current_balances{report_name} (pkscript, wallet, tick, overall_balance, available_balance, block_height)
                    values (%s, %s, %s, %s, %s, %s);""",
             (
-                report_name,
                 pkscript,
                 wallet,
                 tick,
@@ -1449,13 +1362,11 @@ def initial_index_of_extra_tables():
 
     print("resetting brc20_extras_block_hashes")
     cur.execute(
-        "truncate table brc20_extras_block_hashes%s restart identity;",
-        (report_name,),
+        f"truncate table brc20_extras_block_hashes{report_name} restart identity;",
     )
     print("inserting brc20_extras_block_hashes")
     cur.execute(
-        """select block_height, block_hash from brc20_block_hashes%s order by block_height asc;""",
-        (report_name,),
+        f"""select block_height, block_hash from brc20_block_hashes{report_name} order by block_height asc;""",
     )
     rows = cur.fetchall()
     idx = 0
@@ -1466,8 +1377,8 @@ def initial_index_of_extra_tables():
         block_height = row[0]
         block_hash = row[1]
         cur.execute(
-            """INSERT INTO brc20_extras_block_hashes%s (block_height, block_hash) VALUES (%s, %s);""",
-            (report_name, block_height, block_hash),
+            f"""INSERT INTO brc20_extras_block_hashes{report_name} (block_height, block_hash) VALUES (%s, %s);""",
+            (block_height, block_hash),
         )
 
     cur.execute("commit;")
@@ -1476,8 +1387,7 @@ def initial_index_of_extra_tables():
 def index_extra_tables(block_height, block_hash):
     ebh_current_height = 0
     cur.execute(
-        "select max(block_height) as current_ebh_height from brc20_extras_block_hashes%s;",
-        (report_name,),
+        f"select max(block_height) as current_ebh_height from brc20_extras_block_hashes{report_name};",
     )
     if cur.rowcount > 0:
         res = cur.fetchone()[0]
@@ -1490,14 +1400,11 @@ def index_extra_tables(block_height, block_hash):
     print("updating extra tables for block: " + str(block_height))
 
     cur.execute(
-        """select pkscript, wallet, tick, overall_balance, available_balance 
-                 from brc20_historic_balances%s 
+        f"""select pkscript, wallet, tick, overall_balance, available_balance 
+                 from brc20_historic_balances{report_name} 
                  where block_height = %s 
                  order by id asc;""",
-        (
-            report_name,
-            block_height,
-        ),
+        (block_height,),
     )
     balance_changes = cur.fetchall()
     if len(balance_changes) == 0:
@@ -1517,20 +1424,19 @@ def index_extra_tables(block_height, block_hash):
             if idx % 200 == 0:
                 print(idx, "/", len(balance_changes_map))
             cur.execute(
-                """INSERT INTO brc20_current_balances%s (pkscript, wallet, tick, overall_balance, available_balance, block_height) VALUES (%s, %s, %s, %s, %s, %s)
+                f"""INSERT INTO brc20_current_balances{report_name} (pkscript, wallet, tick, overall_balance, available_balance, block_height) VALUES (%s, %s, %s, %s, %s, %s)
                      ON CONFLICT (pkscript, tick) 
                      DO UPDATE SET overall_balance = EXCLUDED.overall_balance
                                 , available_balance = EXCLUDED.available_balance
                                 , block_height = EXCLUDED.block_height;""",
-                (report_name,) + new_balance + (block_height,),
+                new_balance + (block_height,),
             )
 
     cur.execute(
-        """select event, id, event_type, inscription_id 
-                 from brc20_events%s where block_height = %s and (event_type = %s or event_type = %s) 
+        f"""select event, id, event_type, inscription_id 
+                 from brc20_events{report_name} where block_height = %s and (event_type = %s or event_type = %s) 
                  order by id asc;""",
         (
-            report_name,
             block_height,
             event_types["transfer-inscribe"],
             event_types["transfer-transfer"],
@@ -1552,10 +1458,9 @@ def index_extra_tables(block_height, block_hash):
                 print(idx, "/", len(events))
             if new_event["event_type"] == "transfer-inscribe":
                 cur.execute(
-                    """INSERT INTO brc20_unused_tx_inscrs%s (inscription_id, tick, amount, current_holder_pkscript, current_holder_wallet, event_id, block_height)
+                    f"""INSERT INTO brc20_unused_tx_inscrs{report_name} (inscription_id, tick, amount, current_holder_pkscript, current_holder_wallet, event_id, block_height)
                         VALUES (%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (inscription_id) DO NOTHING""",
                     (
-                        report_name,
                         new_event["inscription_id"],
                         new_event["tick"],
                         int(new_event["amount"]),
@@ -1567,19 +1472,16 @@ def index_extra_tables(block_height, block_hash):
                 )
             elif new_event["event_type"] == "transfer-transfer":
                 cur.execute(
-                    """DELETE FROM brc20_unused_tx_inscrs%s WHERE inscription_id = %s;""",
-                    (
-                        report_name,
-                        new_event["inscription_id"],
-                    ),
+                    f"""DELETE FROM brc20_unused_tx_inscrs{report_name} WHERE inscription_id = %s;""",
+                    (new_event["inscription_id"],),
                 )
             else:
                 print("Unknown event type: " + new_event["event_type"])
                 sys.exit(1)
 
     cur.execute(
-        """INSERT INTO brc20_extras_block_hashes%s (block_height, block_hash) VALUES (%s, %s);""",
-        (report_name, block_height, block_hash),
+        f"""INSERT INTO brc20_extras_block_hashes{report_name} (block_height, block_hash) VALUES (%s, %s);""",
+        (block_height, block_hash),
     )
     return True
 
@@ -1588,16 +1490,12 @@ def check_extra_tables():
     global first_inscription_height
     try:
         cur.execute(
-            """
+            f"""
       select min(ebh.block_height) as ebh_tocheck_height
-      from brc20_extras_block_hashes%s ebh
-      left join brc20_block_hashes%s bh on bh.block_height = ebh.block_height
+      from brc20_extras_block_hashes{report_name} ebh
+      left join brc20_block_hashes{report_name} bh on bh.block_height = ebh.block_height
       where bh.block_hash != ebh.block_hash
     """,
-            (
-                report_name,
-                report_name,
-            ),
         )
         ebh_tocheck_height = 0
         if cur.rowcount > 0:
@@ -1607,8 +1505,7 @@ def check_extra_tables():
                 print("hash diff found on block: " + str(ebh_tocheck_height))
         if ebh_tocheck_height == 0:
             cur.execute(
-                "select max(block_height) as current_ebh_height from brc20_extras_block_hashes%s;",
-                (report_name,),
+                f"select max(block_height) as current_ebh_height from brc20_extras_block_hashes{report_name};",
             )
             if cur.rowcount > 0:
                 res = cur.fetchone()[0]
@@ -1618,8 +1515,7 @@ def check_extra_tables():
             print("no extra table data found")
             ebh_tocheck_height = first_inscription_height
         cur.execute(
-            """select max(block_height) from brc20_block_hashes%s;""",
-            (report_name,),
+            f"""select max(block_height) from brc20_block_hashes{report_name};""",
         )
         main_block_height = first_inscription_height
         if cur.rowcount > 0:
@@ -1635,11 +1531,8 @@ def check_extra_tables():
                 initial_index_of_extra_tables()
                 return
             cur.execute(
-                """select block_hash from brc20_block_hashes%s where block_height = %s;""",
-                (
-                    report_name,
-                    ebh_tocheck_height,
-                ),
+                f"""select block_hash from brc20_block_hashes{report_name} where block_height = %s;""",
+                (ebh_tocheck_height,),
             )
             block_hash = cur.fetchone()[0]
             if index_extra_tables(ebh_tocheck_height, block_hash):
@@ -1673,8 +1566,7 @@ while True:
     )
     max_block_of_metaprotocol_db = cur_metaprotocol.fetchone()[0]
     cur.execute(
-        """select max(block_height) from brc20_block_hashes%s;""",
-        (report_name,),
+        f"""select max(block_height) from brc20_block_hashes{report_name};""",
     )
     row = cur.fetchone()
     current_block = None
