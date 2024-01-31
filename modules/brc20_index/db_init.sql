@@ -30,7 +30,7 @@ CREATE TABLE public.brc20_events (
 	block_height int4 NOT NULL,
 	inscription_id text NOT NULL,
 	"event" jsonb NOT NULL,
-	CONSTRAINT events_pk PRIMARY KEY (id)
+	CONSTRAINT brc20_events_pk PRIMARY KEY (id)
 );
 CREATE UNIQUE INDEX brc20_events_event_type_inscription_id_idx ON public.brc20_events USING btree (event_type, inscription_id);
 CREATE INDEX brc20_events_block_height_idx ON public.brc20_events USING btree (block_height);
