@@ -78,19 +78,23 @@ cur_metaprotocol = conn_metaprotocol.cursor()
 
 
 def replace_sql(sql):
-    sql.replace("brc20_block_hashes", "brc20_block_hashes" + report_name)
-    sql.replace("brc20_historic_balances", "brc20_historic_balances" + report_name)
-    sql.replace("brc20_events", "brc20_events" + report_name)
-    sql.replace("brc20_tickers", "brc20_tickers" + report_name)
-    sql.replace(
+    sql = sql.replace("brc20_block_hashes", "brc20_block_hashes" + report_name)
+    sql = sql.replace(
+        "brc20_historic_balances", "brc20_historic_balances" + report_name
+    )
+    sql = sql.replace("brc20_events", "brc20_events" + report_name)
+    sql = sql.replace("brc20_tickers", "brc20_tickers" + report_name)
+    sql = sql.replace(
         "brc20_cumulative_event_hashes",
         "brc20_cumulative_event_hashes" + report_name,
     )
-    sql.replace("brc20_event_types", "brc20_event_types" + report_name)
-    sql.replace("brc20_indexer_version", "brc20_indexer_version" + report_name)
-    sql.replace("brc20_current_balances", "brc20_current_balances" + report_name)
-    sql.replace("brc20_unused_tx_inscrs", "brc20_unused_tx_inscrs" + report_name)
-    sql.replace("brc20_extras_block_hashes", "brc20_extras_block_hashes" + report_name)
+    sql = sql.replace("brc20_event_types", "brc20_event_types" + report_name)
+    sql = sql.replace("brc20_indexer_version", "brc20_indexer_version" + report_name)
+    sql = sql.replace("brc20_current_balances", "brc20_current_balances" + report_name)
+    sql = sql.replace("brc20_unused_tx_inscrs", "brc20_unused_tx_inscrs" + report_name)
+    sql = sql.replace(
+        "brc20_extras_block_hashes", "brc20_extras_block_hashes" + report_name
+    )
     return sql
 
 
