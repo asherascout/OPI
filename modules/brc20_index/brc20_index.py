@@ -50,8 +50,8 @@ def main():
             data = response.json()
             print(data)
             if (
-                to_send["block_height"] == data["block_height"]
-                and to_send["block_event_hash"] == data["block_event_hash"]
+                to_send.get("block_height") == data["block_height"]
+                and to_send.get("block_event_hash") == data["block_event_hash"]
             ):
                 print("Waiting for new blocks...")
                 continue
